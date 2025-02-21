@@ -79,6 +79,9 @@ None at the moment. If you encounter any issues, please report them on our [GitH
 - Update README
 - Update extension description
 
+### 0.0.4 - Add Search bar
+- Add a search bar for filtering SVGs
+
 ## Contributing
 
 Contributions are welcome! Feel free to submit pull requests or create issues on our GitHub repository.

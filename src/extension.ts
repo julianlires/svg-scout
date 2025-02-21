@@ -169,17 +169,20 @@ function updateWebview(panel: vscode.WebviewPanel, icons: SVGItem[]) {
           display: flex;
           color: ${textColor};
         }
+
         .container {
           display: flex;
           flex-direction: row;
           width: 100%;
           height: 100%;
         }
+
         .left-panel {
           flex: 1;
           overflow-y: auto;
           border-right: 1px solid var(--vscode-panel-border);
         }
+
         .right-panel {
           width: 300px;
           padding: 16px;
@@ -188,16 +191,19 @@ function updateWebview(panel: vscode.WebviewPanel, icons: SVGItem[]) {
           flex-direction: column;
           align-items: center;
         }
+
         .icon-grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
           gap: 16px;
           padding: 16px;
         }
+
         .icon-grid a {
           text-decoration: none;
           color: inherit;
         }
+
         .icon-container {
           display: flex;
           flex-direction: column;
@@ -214,9 +220,11 @@ function updateWebview(panel: vscode.WebviewPanel, icons: SVGItem[]) {
           gap: 12px;
           height: 100%;
         }
+
         .icon-container:hover {
           background-color: var(--vscode-list-hoverBackground);
         }
+
         .icon-container svg {
           width: 100%;
           height: 100%;
@@ -224,41 +232,87 @@ function updateWebview(panel: vscode.WebviewPanel, icons: SVGItem[]) {
           max-height: 96px;
           color: ${svgColor};
         }
+
         .icon-name {
           font-size: 12px;
           -webkit-line-clamp: 3;
           height: 3.6em;
           text-align: center;
         }
+
         .preview-container {
           text-align: center;
         }
+
         .preview-container svg {
           width: 200px;
           height: 200px;
           margin: 20px 0;
           color: ${svgColor};
         }
+
         .preview-info {
           margin-top: 16px;
           font-family: var(--vscode-font-family);
           color: var(--vscode-foreground);
         }
+
         .file-link {
           color: var(--vscode-textLink-foreground);
           text-decoration: none;
         }
+
         .file-link:hover {
           text-decoration: underline;
+        }
+
+        .search-container {
+          padding: 16px;
+          position: sticky;
+          top: 0;
+          background: var(--vscode-editor-background);
+          z-index: 1;
+          border-bottom: 1px solid var(--vscode-panel-border);
+        }
+
+        .search-input {
+          width: 100%;
+          padding: 8px;
+          font-size: 14px;
+          border: 1px solid var(--vscode-panel-border);
+          background: var(--vscode-input-background);
+          color: var(--vscode-input-foreground);
+          border-radius: 4px;
+          outline: none;
+        }
+
+        .search-input:focus {
+          border-color: var(--vscode-focusBorder);
+        }
+
+        .no-results {
+          padding: 16px;
+          text-align: center;
+          color: var(--vscode-foreground);
         }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="left-panel">
-          <div class="icon-grid">
+          <div class="search-container">
+            <input
+              type="text"
+              class="search-input"
+              placeholder="Search SVGs..."
+              oninput="filterIcons(this.value)"
+            >
+          </div>
+          <div class="icon-grid" id="iconGrid">
             ${icons.map((icon, index) => `
-              <a href="command:vscode.open?${encodeURIComponent(JSON.stringify([getFileUri(icon.filePath)]))}">
+              <a href="command:vscode.open?${encodeURIComponent(JSON.stringify([getFileUri(icon.filePath)]))}"
+                 class="icon-link"
+                 data-name="${icon.name.toLowerCase()}">
                 <div class="icon-container" onmouseover="showPreview(${index})">
                   ${icon.svg}
                   <div class="icon-name">
@@ -290,6 +344,36 @@ function updateWebview(panel: vscode.WebviewPanel, icons: SVGItem[]) {
               </a>
             </div>
           \`;
+        }
+
+        function filterIcons(searchTerm) {
+          const grid = document.getElementById('iconGrid');
+          const iconLinks = grid.getElementsByClassName('icon-link');
+          let visibleCount = 0;
+
+          searchTerm = searchTerm.toLowerCase();
+
+          for (const link of iconLinks) {
+            const name = link.getAttribute('data-name');
+            if (name.includes(searchTerm)) {
+              link.style.display = '';
+              visibleCount++;
+            } else {
+              link.style.display = 'none';
+            }
+          }
+
+          let noResults = grid.querySelector('.no-results');
+          if (visibleCount === 0) {
+            if (!noResults) {
+              noResults = document.createElement('div');
+              noResults.className = 'no-results';
+              noResults.textContent = 'No icons found';
+              grid.appendChild(noResults);
+            }
+          } else if (noResults) {
+            noResults.remove();
+          }
         }
       </script>
     </body>
