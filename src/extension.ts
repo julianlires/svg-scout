@@ -2,15 +2,13 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { glob } from 'glob';
+import { cleanSvg } from './utils/svg-cleaner';
+import { humanizeFileName } from './utils/string-formatter';
+import { getGitignorePatterns } from './utils/gitignore-parser';
+import { SVGItem } from './types';
 
 // This will store our WebView panel
 let iconsPanel: vscode.WebviewPanel | undefined;
-
-interface SVGItem {
-  name: string;
-  svg: string;
-  filePath: string;
-}
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('Extension "SVG Scout" is now active!');
@@ -19,87 +17,76 @@ export function activate(context: vscode.ExtensionContext) {
     if (iconsPanel) {
       iconsPanel.reveal(vscode.ViewColumn.One);
     } else {
-      iconsPanel = vscode.window.createWebviewPanel(
-        'svgScout',
-        'SVG Scout',
-        vscode.ViewColumn.One,
-        {
-          enableScripts: true,
-          enableCommandUris: true
-        }
-      );
-
-      iconsPanel.webview.html = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <style>
-            .loading {
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: center;
-              position: fixed;
-              top: 50%;
-              left: 50%;
-              transform: translate(-50%, -50%);
-              text-align: center;
-            }
-            .loading-spinner {
-              width: 50px;
-              height: 50px;
-              border: 5px solid #f3f3f3;
-              border-top: 5px solid var(--vscode-textLink-foreground);
-              border-radius: 50%;
-              animation: spin 1s linear infinite;
-              margin-bottom: 16px;
-            }
-            .loading-text {
-              color: var(--vscode-foreground);
-              font-family: var(--vscode-font-family);
-            }
-            @keyframes spin {
-              0% { transform: rotate(0deg); }
-              100% { transform: rotate(360deg); }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="loading">
-            <div class="loading-spinner"></div>
-            <div class="loading-text">Searching SVGs in files...</div>
-          </div>
-        </body>
-        </html>
-      `;
-
-      iconsPanel.onDidDispose(() => {
-        iconsPanel = undefined;
-      });
+      iconsPanel = createWebviewPanel();
     }
 
     const svgs = await findSvgIcons();
-
     updateWebview(iconsPanel, svgs);
   });
 
   context.subscriptions.push(disposable);
 }
 
-function humanizeFileName(name: string): string {
-  if (name.includes('_')) {
-    return name
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
-  }
+function createWebviewPanel(): vscode.WebviewPanel {
+  const panel = vscode.window.createWebviewPanel(
+    'svgScout',
+    'SVG Scout',
+    vscode.ViewColumn.One,
+    {
+      enableScripts: true,
+      enableCommandUris: true
+    }
+  );
 
-  return name
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .replace(/([A-Z])([A-Z][a-z])/g, '$1 $2')
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ');
+  panel.webview.html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        .loading {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          text-align: center;
+        }
+        .loading-spinner {
+          width: 50px;
+          height: 50px;
+          border: 5px solid #f3f3f3;
+          border-top: 5px solid var(--vscode-textLink-foreground);
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin-bottom: 16px;
+        }
+        .loading-text {
+          color: var(--vscode-foreground);
+          font-family: var(--vscode-font-family);
+        }
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="loading">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Searching SVGs in files...</div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  panel.onDidDispose(() => {
+    iconsPanel = undefined;
+  });
+
+  return panel;
 }
 
 async function findSvgIcons(): Promise<SVGItem[]> {
@@ -139,45 +126,6 @@ async function findSvgIcons(): Promise<SVGItem[]> {
   }
 
   return svgItemsList;
-}
-
-async function getGitignorePatterns(workspaceRoot: string): Promise<string[]> {
-  try {
-    const gitignorePath = path.join(workspaceRoot, '.gitignore');
-    const gitignoreContent = await fs.promises.readFile(gitignorePath, 'utf8');
-    return gitignoreContent
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line && !line.startsWith('#'))
-      .map(pattern => `**/${pattern}`);
-  } catch (error) {
-    return [];
-  }
-}
-
-function cleanSvg(svg: string): string {
-  let cleanSvg = svg;
-
-  cleanSvg = cleanSvg.replace(/<!--[\s\S]*?-->/g, '');
-
-  // Clean up TSX/JSX expressions
-  cleanSvg = cleanSvg.replace(/{...props}/g, '');
-  cleanSvg = cleanSvg.replace(/{(\d+)}/g, '"$1"'); // Replace {3} with "3"
-  cleanSvg = cleanSvg.replace(/{"([^"]*)"}/g, '"$1"'); // Replace {"text"} with "text"
-  cleanSvg = cleanSvg.replace(/{\'([^\']*)\'}/g, '"$1"'); // Replace {'text'} with "text"
-
-  // If the SVG doesn't have a viewBox, add one based on height and width
-  if (!cleanSvg.includes('viewBox=')) {
-    const heightMatch = cleanSvg.match(/height="([0-9.]+)([^"]*)"/);
-    const widthMatch = cleanSvg.match(/width="([0-9.]+)([^"]*)"/);
-
-    if (heightMatch && widthMatch) {
-      const viewBox = `0 0  ${widthMatch[1]} ${heightMatch[1]}`;
-      cleanSvg = cleanSvg.replace(/<svg/, `<svg viewBox="${viewBox}"`);
-    }
-  }
-
-  return cleanSvg;
 }
 
 function updateWebview(panel: vscode.WebviewPanel, icons: SVGItem[]) {
