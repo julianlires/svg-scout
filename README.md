@@ -25,7 +25,7 @@ SVG Scout is a Visual Studio Code extension that helps you discover and manage S
 2. Access SVG Scout in one of these ways:
    - Press `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (macOS)
    - Type "Show Icons List" and press Enter
-   - Or use the "Icons: Show Icons List" command from the command palette
+   - Or use the "SVG Scout: Show Icons List" command from the command palette
 
 [GIF showing how to open and use SVG Scout]
 
@@ -40,9 +40,8 @@ SVG Scout searches for inline SVG icons in the following file types:
 ## Features in Detail
 
 ### Visual Grid Layout
-- Each icon is displayed in a grid cell
-- Icons maintain their original appearance
-- Hover over icons to see their names
+- Each SVG is displayed in a grid cell
+- SVGs maintain their original appearance
 - Click on the icon name to navigate to its source file
 
 ### Smart Scanning
@@ -69,6 +68,14 @@ None at the moment. If you encounter any issues, please report them on our [GitH
 - Navigation to source files
 - Support for multiple file types
 - .gitignore integration
+
+### 0.0.2 - Add extension icon
+- Adds extension icon
+
+### 0.0.3 - Minor updates
+- Allow clinking on whole icon
+- Update README
+- Update extension description
 
 ## Contributing
 
