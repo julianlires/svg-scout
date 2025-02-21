@@ -86,6 +86,22 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(disposable);
 }
 
+function humanizeFileName(name: string): string {
+  if (name.includes('_')) {
+    return name
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  }
+
+  return name
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z])([A-Z][a-z])/g, '$1 $2')
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
 async function findSvgIcons(): Promise<SVGItem[]> {
   const svgItemsList: SVGItem[] = [];
 
@@ -109,8 +125,9 @@ async function findSvgIcons(): Promise<SVGItem[]> {
     const content = await fs.promises.readFile(file, 'utf8');
     const svgMatches = content.match(/<svg[^>]*>[\s\S]*?<\/svg>/g);
     const svgItemsPartial = svgMatches?.map((svg, index) => {
+      const fileName = path.basename(file).split('.').shift() || `Icon ${index + 1}`;
       return {
-        name: path.basename(file).split('.').shift() || `Icon ${index + 1}`,
+        name: humanizeFileName(fileName),
         svg: cleanSvg(svg),
         filePath: file
       } as SVGItem;
@@ -238,11 +255,11 @@ function updateWebview(panel: vscode.WebviewPanel, icons: SVGItem[]) {
           color: ${svgColor};
         }
         .icon-name {
-
-            font-size: 12px;
-            -webkit-line-clamp: 3;
-            height: 3.6em;
-          }
+          font-size: 12px;
+          -webkit-line-clamp: 3;
+          height: 3.6em;
+          text-align: center;
+        }
         .preview-container {
           text-align: center;
         }
