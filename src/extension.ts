@@ -98,17 +98,39 @@ async function findSvgIcons(): Promise<SVGItem[]> {
 
   const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
 
-  const files = await glob('**/*.{jsx,tsx,js,ts,html,vue}', {
+  // First, find all SVG files
+  const svgFiles = await glob('**/*.svg', {
     cwd: workspaceRoot,
     absolute: true,
     ignore: [
       '**/node_modules/**',
-      // Include .gitignore patterns
       ...(await getGitignorePatterns(workspaceRoot))
     ]
   });
 
-  for (const file of files) {
+  // Handle SVG files
+  for (const file of svgFiles) {
+    const content = await fs.promises.readFile(file, 'utf8');
+    const fileName = path.basename(file).split('.').shift() || 'Icon';
+    svgItemsList.push({
+      name: humanizeFileName(fileName),
+      svg: cleanSvg(content),
+      filePath: file
+    });
+  }
+
+  // Then find SVGs in other files
+  const otherFiles = await glob('**/*.{jsx,tsx,js,ts,html,vue}', {
+    cwd: workspaceRoot,
+    absolute: true,
+    ignore: [
+      '**/node_modules/**',
+      '**/*.svg',
+      ...(await getGitignorePatterns(workspaceRoot))
+    ]
+  });
+
+  for (const file of otherFiles) {
     const content = await fs.promises.readFile(file, 'utf8');
     const svgMatches = content.match(/<svg[^>]*>[\s\S]*?<\/svg>/g);
     const svgItemsPartial = svgMatches?.map((svg, index) => {
