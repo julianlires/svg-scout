@@ -42,7 +42,7 @@ SVG Scout searches for inline SVG icons in the following file types:
 ### Visual Grid Layout
 - Each SVG is displayed in a grid cell
 - SVGs maintain their original appearance
-- Click on the icon name to navigate to its source file
+- Click on the svg to navigate to its source file
 
 ### Smart Scanning
 - Respects your project's `.gitignore` patterns
@@ -73,7 +73,9 @@ None at the moment. If you encounter any issues, please report them on our [GitH
 - Adds extension icon
 
 ### 0.0.3 - Minor updates
-- Allow clinking on whole icon
+- Allow clicking on item
+- Consider SVG files
+- Add bigger preview on hover
 - Update README
 - Update extension description
 
