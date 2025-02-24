@@ -120,14 +120,15 @@ async function findSvgIcons(): Promise<SVGItem[]> {
   }
 
   // Then find SVGs in other files
-  const otherFiles = await glob('**/*.{jsx,tsx,js,ts,html,vue}', {
+  const otherFiles = await glob('**/*.{jsx,tsx,js,ts,html,vue,erb,haml,php,py,rb,scala,swift}', {
     cwd: workspaceRoot,
     absolute: true,
     ignore: [
       '**/node_modules/**',
       '**/*.svg',
       ...(await getGitignorePatterns(workspaceRoot))
-    ]
+    ],
+    nodir: true
   });
 
   for (const file of otherFiles) {
@@ -381,5 +382,4 @@ function updateWebview(panel: vscode.WebviewPanel, icons: SVGItem[]) {
   `;
 }
 
-// This method is called when your extension is deactivated
 export function deactivate() {}
