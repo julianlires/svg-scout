@@ -32,10 +32,28 @@ SVG Scout is a Visual Studio Code extension that helps you discover and manage S
 ## Supported File Types
 
 SVG Scout searches for inline SVG icons in the following file types:
+- `.svg` (SVG files)
 - `.jsx` and `.tsx` (React files)
 - `.js` and `.ts` (JavaScript/TypeScript files)
 - `.html` (HTML files)
 - `.vue` (Vue files)
+- `.astro` (Astro framework)
+- `.svelte` (Svelte framework)
+- `.erb` (Ruby ERB templates)
+- `.haml` (Haml templates)
+- `.php` and `.phtml` (PHP files)
+- `.py` (Python files)
+- `.rb` (Ruby files)
+- `.scala` (Scala files)
+- `.swift` (Swift files)
+- `.razor`, `.cshtml`, `.aspx` (ASP.NET files)
+- `.jsp` (Java Server Pages)
+- `.twig` (Twig templates)
+- `.blade` (Laravel Blade templates)
+- `.liquid` (Shopify Liquid templates)
+- `.hbs`, `.handlebars`, `.mustache` (Handlebars/Mustache templates)
+- `.ejs` (Embedded JavaScript templates)
+- `.jade`, `.pug` (Pug/Jade templates)
 
 ## Features in Detail
 
@@ -81,6 +99,11 @@ None at the moment. If you encounter any issues, please report them on our [GitH
 
 ### 0.0.4 - Add Search bar
 - Add a search bar for filtering SVGs
+
+### 0.1.0 - Add progress bar + live feed
+- Adds support for multiple file extensions
+- Add a bar that shows progress on file analysis
+- Start showing SVG files when found
 
 ## Contributing
 
