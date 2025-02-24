@@ -9,6 +9,9 @@ import { SVGItem } from './types';
 
 // This will store our WebView panel
 let iconsPanel: vscode.WebviewPanel | undefined;
+const supportedExtensions = [
+  "jsx", "tsx","js","ts", "html", "vue", "erb", "haml", "php", "py", "rb", "scala", "swift", "astro", "svelte", "razor", "cshtml", "aspx", "jsp", "twig", "blade", "liquid", "phtml", "hbs", "handlebars", "mustache", "ejs", "jade", "pug"
+];
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('Extension "SVG Scout" is now active!');
@@ -38,49 +41,7 @@ function createWebviewPanel(): vscode.WebviewPanel {
     }
   );
 
-  panel.webview.html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        .loading {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          position: fixed;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          text-align: center;
-        }
-        .loading-spinner {
-          width: 50px;
-          height: 50px;
-          border: 5px solid #f3f3f3;
-          border-top: 5px solid var(--vscode-textLink-foreground);
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-          margin-bottom: 16px;
-        }
-        .loading-text {
-          color: var(--vscode-foreground);
-          font-family: var(--vscode-font-family);
-        }
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="loading">
-        <div class="loading-spinner"></div>
-        <div class="loading-text">Searching SVGs in files...</div>
-      </div>
-    </body>
-    </html>
-  `;
+  panel.webview.html = getInitialHtml();
 
   panel.onDidDispose(() => {
     iconsPanel = undefined;
@@ -89,75 +50,12 @@ function createWebviewPanel(): vscode.WebviewPanel {
   return panel;
 }
 
-async function findSvgIcons(): Promise<SVGItem[]> {
-  const svgItemsList: SVGItem[] = [];
-
-  if (!vscode.workspace.workspaceFolders) {
-    return svgItemsList;
-  }
-
-  const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
-
-  // First, find all SVG files
-  const svgFiles = await glob('**/*.svg', {
-    cwd: workspaceRoot,
-    absolute: true,
-    ignore: [
-      '**/node_modules/**',
-      ...(await getGitignorePatterns(workspaceRoot))
-    ]
-  });
-
-  // Handle SVG files
-  for (const file of svgFiles) {
-    const content = await fs.promises.readFile(file, 'utf8');
-    const fileName = path.basename(file).split('.').shift() || 'Icon';
-    svgItemsList.push({
-      name: humanizeFileName(fileName),
-      svg: cleanSvg(content),
-      filePath: file
-    });
-  }
-
-  // Then find SVGs in other files
-  const otherFiles = await glob('**/*.{jsx,tsx,js,ts,html,vue,erb,haml,php,py,rb,scala,swift}', {
-    cwd: workspaceRoot,
-    absolute: true,
-    ignore: [
-      '**/node_modules/**',
-      '**/*.svg',
-      ...(await getGitignorePatterns(workspaceRoot))
-    ],
-    nodir: true
-  });
-
-  for (const file of otherFiles) {
-    const content = await fs.promises.readFile(file, 'utf8');
-    const svgMatches = content.match(/<svg[^>]*>[\s\S]*?<\/svg>/g);
-    const svgItemsPartial = svgMatches?.map((svg, index) => {
-      const fileName = path.basename(file).split('.').shift() || `Icon ${index + 1}`;
-      return {
-        name: humanizeFileName(fileName),
-        svg: cleanSvg(svg),
-        filePath: file
-      } as SVGItem;
-    });
-
-    if (svgItemsPartial) {
-      svgItemsList.push(...svgItemsPartial);
-    }
-  }
-
-  return svgItemsList;
-}
-
-function updateWebview(panel: vscode.WebviewPanel, icons: SVGItem[]) {
+function getInitialHtml(): string {
   const isDarkTheme = vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Dark;
   const svgColor = isDarkTheme ? '#ffffff' : '#000000';
   const textColor = isDarkTheme ? '#ffffff' : '#000000';
-  const getFileUri = (filePath: string) => vscode.Uri.file(filePath).toString();
 
-  panel.webview.html = `
+  return `
     <!DOCTYPE html>
     <html>
     <head>
@@ -232,6 +130,21 @@ function updateWebview(panel: vscode.WebviewPanel, icons: SVGItem[]) {
           max-width: 96px;
           max-height: 96px;
           color: ${svgColor};
+        }
+
+        .progress-bar-container {
+          width: calc(100% - 32px);
+          height: 10px;
+          background-color: var(--vscode-panel-border);
+          border-radius: 4px;
+          margin: 0px 16px;
+        }
+
+        .progress-bar {
+          height: 100%;
+          background-color: var(--vscode-progressBar-background);
+          border-radius: 4px;
+          width: 0;
         }
 
         .icon-name {
@@ -309,19 +222,10 @@ function updateWebview(panel: vscode.WebviewPanel, icons: SVGItem[]) {
               oninput="filterIcons(this.value)"
             >
           </div>
+          <div class="progress-bar-container">
+            <div class="progress-bar" id="progressBar"></div>
+          </div>
           <div class="icon-grid" id="iconGrid">
-            ${icons.map((icon, index) => `
-              <a href="command:vscode.open?${encodeURIComponent(JSON.stringify([getFileUri(icon.filePath)]))}"
-                 class="icon-link"
-                 data-name="${icon.name.toLowerCase()}">
-                <div class="icon-container" onmouseover="showPreview(${index})">
-                  ${icon.svg}
-                  <div class="icon-name">
-                    ${icon.name}
-                  </div>
-                </div>
-              </a>
-            `).join('')}
           </div>
         </div>
         <div class="right-panel">
@@ -331,11 +235,38 @@ function updateWebview(panel: vscode.WebviewPanel, icons: SVGItem[]) {
         </div>
       </div>
       <script>
-        const icons = ${JSON.stringify(icons)};
+        let icons = [];
+
+        function addIcon(icon, index) {
+          const grid = document.getElementById('iconGrid');
+
+          const iconElement = document.createElement('a');
+          iconElement.href = \`command:vscode.open?\${encodeURIComponent(JSON.stringify([icon.filePath]))}\`;
+          iconElement.className = 'icon-link';
+          iconElement.setAttribute('data-name', icon.name.toLowerCase());
+
+          iconElement.innerHTML = \`
+            <div class="icon-container" onmouseover="showPreview(\${index})">
+              \${icon.svg}
+              <div class="icon-name">
+                \${icon.name}
+              </div>
+            </div>
+          \`;
+
+          grid.appendChild(iconElement);
+        }
+
+        function updateProgressBar(progress) {
+          const progressBar = document.getElementById('progressBar');
+          if (progressBar) {
+            progressBar.style.width = \`\${progress}%\`;
+          }
+        }
 
         function showPreview(index) {
           const icon = icons[index];
-          const preview = document.getElementById('preview');
+          const preview = document.getEleme>ntById('preview');
           preview.innerHTML = \`
             \${icon.svg}
             <div class="preview-info">
@@ -376,10 +307,102 @@ function updateWebview(panel: vscode.WebviewPanel, icons: SVGItem[]) {
             noResults.remove();
           }
         }
+
+        window.addEventListener('message', event => {
+          const message = event.data;
+          if (message.type === 'addIcon') {
+            icons.push(message.icon);
+            addIcon(message.icon, icons.length - 1);
+          } else if (message.type === 'updateProgressBar') {
+            updateProgressBar(message.progress);
+          }
+        });
       </script>
     </body>
     </html>
   `;
+}
+
+async function findSvgIcons(): Promise<SVGItem[]> {
+  const svgItemsList: SVGItem[] = [];
+
+  if (!vscode.workspace.workspaceFolders) {
+    return svgItemsList;
+  }
+
+  const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
+
+  const svgFiles = await glob('**/*.svg', {
+    cwd: workspaceRoot,
+    absolute: true,
+    ignore: [
+      '**/node_modules/**',
+      ...(await getGitignorePatterns(workspaceRoot))
+    ]
+  });
+
+  const otherFiles = await glob(`**/*.{${supportedExtensions.join(',')}}`, {
+    cwd: workspaceRoot,
+    absolute: true,
+    ignore: [
+      '**/node_modules/**',
+      '**/*.svg',
+      ...(await getGitignorePatterns(workspaceRoot))
+    ],
+    nodir: true
+  });
+
+  const totalFiles = svgFiles.length + otherFiles.length;
+  let previousReportedProgress = 0;
+  let processedFiles = 0;
+  const updateProgressBar = (progress: number) => {
+    if (progress > previousReportedProgress + 1) {
+      iconsPanel?.webview.postMessage({ type: 'updateProgressBar', progress });
+      previousReportedProgress = progress;
+    }
+  };
+
+  // Handle SVG files
+  for (const file of svgFiles) {
+    const content = await fs.promises.readFile(file, 'utf8');
+    const fileName = path.basename(file).split('.').shift() || 'Icon';
+    const icon = {
+      name: humanizeFileName(fileName),
+      svg: cleanSvg(content),
+      filePath: file
+    };
+    svgItemsList.push(icon);
+    iconsPanel?.webview.postMessage({ type: 'addIcon', icon });
+    processedFiles++;
+    updateProgressBar(Math.round((processedFiles / totalFiles) * 100));
+  }
+
+  // Handle SVGs inlined in other files
+  for (const file of otherFiles) {
+    const content = await fs.promises.readFile(file, 'utf8');
+    const svgMatches = content.match(/<svg[^>]*>[\s\S]*?<\/svg>/g);
+
+    if (svgMatches) {
+      for (let i = 0; i < svgMatches.length; i++) {
+        const fileName = path.basename(file).split('.').shift() || `Icon ${i + 1}`;
+        const icon = {
+          name: humanizeFileName(fileName),
+          svg: cleanSvg(svgMatches[i]),
+          filePath: file
+        };
+        svgItemsList.push(icon);
+        iconsPanel?.webview.postMessage({ type: 'addIcon', icon });
+      }
+    }
+    processedFiles++;
+    updateProgressBar(Math.round((processedFiles / totalFiles) * 100));
+  }
+
+  return svgItemsList;
+}
+
+function updateWebview(panel: vscode.WebviewPanel, icons: SVGItem[]) {
+  panel.webview.html = getInitialHtml();
 }
 
 export function deactivate() {}
